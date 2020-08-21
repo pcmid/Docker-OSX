@@ -77,6 +77,9 @@ RUN pacman -Syu --noconfirm \
     && mkdir /home/arch \
     && chown arch:arch /home/arch
 
+RUN mkdir /disks \
+    && chown -R arch:arch /disks
+
 # allow ssh to container
 WORKDIR /root
 RUN mkdir .ssh \
@@ -116,8 +119,7 @@ RUN git clone https://github.com/kholia/OSX-KVM.git
 
 # create disk
 WORKDIR /home/arch/OSX-KVM
-RUN qemu-img convert ${HOME}/gibMacOS/macOS\ Downloads/publicrelease/*/BaseSystem.dmg -O raw ${HOME}/OSX-KVM/BaseSystem.img \
-    && qemu-img create -f qcow2 mac_hdd_ng.img "${SIZE}"
+RUN qemu-img convert ${HOME}/gibMacOS/macOS\ Downloads/publicrelease/*/BaseSystem.dmg -O raw ${HOME}/OSX-KVM/BaseSystem.img
 
 # enable ssh
 # docker exec .... ./enable-ssh.sh
@@ -157,7 +159,7 @@ RUN touch Launch.sh \
     && tee -a Launch.sh <<< '-device ide-hd,bus=sata.2,drive=OpenCoreBoot \' \
     && tee -a Launch.sh <<< '-device ide-hd,bus=sata.3,drive=InstallMedia \' \
     && tee -a Launch.sh <<< '-drive id=InstallMedia,if=none,file=BaseSystem.img,format=raw \' \
-    && tee -a Launch.sh <<< '-drive id=MacHDD,if=none,file=/home/arch/OSX-KVM/mac_hdd_ng.img,format=qcow2 \' \
+    && tee -a Launch.sh <<< '-drive id=MacHDD,if=none,file=/disks/mac.qcow2,format=qcow2 \' \
     && tee -a Launch.sh <<< '-device ide-hd,bus=sata.4,drive=MacHDD \' \
     && tee -a Launch.sh <<< '-netdev user,id=net0,hostfwd=tcp::${INTERNAL_SSH_PORT}-:22, -device e1000-82545em,netdev=net0,id=net0,mac=52:54:00:09:49:17 \' \
     && tee -a Launch.sh <<< '-monitor stdio \' \
@@ -180,7 +182,7 @@ ENV INTERNAL_SSH_PORT=10022
 # export INTERNAL_SSH_PORT=10022
 
 USER arch
-VOLUME ["/tmp/.X11-unix"]
+VOLUME ["/tmp/.X11-unix", "/disks"]
 
 CMD ./enable-ssh.sh && envsubst < ./Launch.sh | bash
 
